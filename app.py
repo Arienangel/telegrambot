@@ -1,0 +1,80 @@
+import logging
+from uuid import uuid4
+import random
+import yaml
+from telegram import ForceReply, Update
+from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
+
+
+class Bot:
+
+    def __init__(self, token: str) -> None:
+        self.app = Application.builder().token(token).build()
+        self.app.add_handler(CommandHandler("help", self.help))
+        self.app.add_handler(CommandHandler("meow", self.meow))
+        self.app.add_handler(CommandHandler("greet", self.greet))
+        self.app.add_handler(CommandHandler("chance", self.chance))
+        self.app.add_handler(CommandHandler("fortune", self.fortune))
+        self.app.add_handler(CommandHandler("pick", self.pick))
+        self.app.add_handler(CommandHandler("dice", self.dice))
+        self.app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.echo))
+
+    async def help(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        await update.message.reply_text(config['bot']['commands']['help']['message'], reply_to_message_id=update.message.id)
+
+    async def meow(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        text = random.choices(list(config['bot']['commands']['meow']['choices'].keys()), weights=config['bot']['commands']['meow']['choices'].values(), k=1)[0]
+        await update.message.reply_text(text)
+
+    async def greet(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        text = f'Hi {update.effective_user.full_name}'
+        await update.message.reply_text(text, reply_to_message_id=update.message.id)
+
+    async def chance(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        roll = lambda: random.randint(config['bot']['commands']['chance']['min'], config['bot']['commands']['chance']['max'])
+        if len(context.args):
+            text = '\n'.join([f"{i}: {roll()}%" for i in context.args])
+        else:
+            text = roll()
+        await update.message.reply_text(text, reply_to_message_id=update.message.id)
+
+    async def fortune(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        roll = lambda: random.choices(list(config['bot']['commands']['fortune']['choices'].keys()), weights=config['bot']['commands']['fortune']['choices'].values(), k=1)[0]
+        if len(context.args):
+            text = '\n'.join([f"{i}: {roll()}" for i in context.args])
+        else:
+            text = roll()
+        await update.message.reply_text(text, reply_to_message_id=update.message.id)
+
+    async def pick(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if len(context.args):
+            text = random.choice(context.args)
+        else:
+            text = 'Nothing to pick!'
+        await update.message.reply_text(text, reply_to_message_id=update.message.id)
+
+    async def dice(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        await update.message.reply_dice()
+
+    async def echo(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        await update.message.reply_text(update.message.text, reply_to_message_id=update.message.id)
+
+
+if __name__ == "__main__":
+    import argparse
+    import sys
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-f', type=str, default="config.yaml")
+    parser.add_argument('--log-level', type=int, default=30)
+    args = parser.parse_args()
+    with open(args.f, encoding='utf-8') as f:
+        config = yaml.load(f, yaml.SafeLoader)
+    logging.basicConfig(
+        format=config['logging']['format'] or '%(asctime)s %(levelname)s %(name)s: %(message)s',
+        level=config['logging']['level'] or args.log_level,
+    )
+    logger = logging.getLogger('App')
+    logger.debug(f'GIL enabled: {sys._is_gil_enabled()}')
+    logger.info(f'Config file: {args.f}')
+    bot = Bot(config['bot']['token'])
+    bot.app.run_polling(allowed_updates=Update.ALL_TYPES)
