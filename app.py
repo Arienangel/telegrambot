@@ -35,7 +35,7 @@ class Bot:
         if len(context.args):
             text = '\n'.join([f"{i}: {roll()}%" for i in context.args])
         else:
-            text = roll()
+            text = f'{roll()}%'
         await update.message.reply_text(text, reply_to_message_id=update.message.id)
 
     async def fortune(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -43,7 +43,7 @@ class Bot:
         if len(context.args):
             text = '\n'.join([f"{i}: {roll()}" for i in context.args])
         else:
-            text = roll()
+            text = f'運勢: {roll()}'
         await update.message.reply_text(text, reply_to_message_id=update.message.id)
 
     async def pick(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
