@@ -91,10 +91,13 @@ class Bot:
         await update.message.reply_text(text, reply_to_message_id=update.message.id)
 
     async def add_reminder(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        chat_id = update.effective_message.chat_id
-        hour, minute = context.args[0].split(':')
-        tz = pytz.timezone(config['bot']['reminder']['timezone'])
-        timer = datetime.time(int(hour), int(minute), tzinfo=tz)
+        try:
+            chat_id = update.effective_message.chat_id
+            hour, minute = context.args[0].split(':')
+            tz = pytz.timezone(config['bot']['reminder']['timezone'])
+            timer = datetime.time(int(hour), int(minute), tzinfo=tz)
+        except:
+            await update.message.reply_text('Invalid time!', reply_to_message_id=update.message.id)
         try:
             context.job_queue.run_daily(self.send_reminder, timer, name=f'{chat_id}@{timer.strftime("%H:%M")}', chat_id=chat_id)
             await update.message.reply_text(f'Send reminder at {timer.strftime("%H:%M")}', reply_to_message_id=update.message.id)
@@ -119,7 +122,7 @@ class Bot:
         for job in jobs:
             try:
                 job.schedule_removal()
-                await update.message.reply_text(f'Remove reminder at {job.name.split(' @ ')[-1]}', reply_to_message_id=update.message.id)
+                await update.message.reply_text(f'Remove reminder at {job.name.split('@')[-1]}', reply_to_message_id=update.message.id)
             finally:
                 self.save_timers()
 
