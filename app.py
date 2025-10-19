@@ -14,6 +14,7 @@ class Bot:
 
     def __init__(self, token: str) -> None:
         self.app = Application.builder().token(token).build()
+        self.app.add_error_handler(self.error_handler)
         self.app.add_handler(CommandHandler("start", self.help))
         self.app.add_handler(CommandHandler("help", self.help))
         self.app.add_handler(CommandHandler("meow", self.meow))
@@ -26,6 +27,10 @@ class Bot:
         self.app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.echo))
         if os.path.exists(config['bot']['reminder']['file']): self.load_timers()
 
+    async def error_handler(self, update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+        E = context.error
+        logger.warning(f'{type(E)}:{E.args}')
+
     async def help(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text(config['bot']['commands']['help']['message'], reply_to_message_id=update.message.id)
 
@@ -37,20 +42,24 @@ class Bot:
         text = f'Hi {update.effective_user.full_name}'
         await update.message.reply_text(text, reply_to_message_id=update.message.id)
 
+    def roll_chance(self):
+        return random.randint(config['bot']['commands']['chance']['min'], config['bot']['commands']['chance']['max'])
+
     async def chance(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        roll = lambda: random.randint(config['bot']['commands']['chance']['min'], config['bot']['commands']['chance']['max'])
         if len(context.args):
-            text = '\n'.join([f"{i}: {roll()}%" for i in context.args])
+            text = '\n'.join([f"{i}: {self.roll_chance()}%" for i in context.args])
         else:
-            text = f'{roll()}%'
+            text = f'機率: {self.roll_chance()}%'
         await update.message.reply_text(text, reply_to_message_id=update.message.id)
 
+    def roll_fortune(self):
+        return random.choices(list(config['bot']['commands']['fortune']['choices'].keys()), weights=config['bot']['commands']['fortune']['choices'].values(), k=1)[0]
+
     async def fortune(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        roll = lambda: random.choices(list(config['bot']['commands']['fortune']['choices'].keys()), weights=config['bot']['commands']['fortune']['choices'].values(), k=1)[0]
         if len(context.args):
-            text = '\n'.join([f"{i}: {roll()}" for i in context.args])
+            text = '\n'.join([f"{i}: {self.roll_fortune()}" for i in context.args])
         else:
-            text = f'運勢: {roll()}'
+            text = f'運勢: {self.roll_fortune()}'
         await update.message.reply_text(text, reply_to_message_id=update.message.id)
 
     async def pick(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -122,7 +131,7 @@ class Bot:
         for job in jobs:
             try:
                 job.schedule_removal()
-                await update.message.reply_text(f'Remove reminder at {job.name.split('@')[-1]}', reply_to_message_id=update.message.id)
+                await update.message.reply_text(f'Remove reminder at {job.name.split("@")[-1]}', reply_to_message_id=update.message.id)
             finally:
                 self.save_timers()
 
